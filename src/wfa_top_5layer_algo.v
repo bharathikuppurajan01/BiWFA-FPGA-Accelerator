@@ -130,7 +130,9 @@ module wfa_top_5layer_algo #(
     ) L5_RECONSTRUCT (
         .clk(clk), .rst_n(rst_n),
         .trace_segment_valid(trace_segment_valid), .trace_k(trace_k), .trace_x_start(trace_x_start), .trace_x_end(trace_x_end),
-        .align_valid(align_valid), .op_code(op_code), .op_length(op_length)
+        .align_valid(align_valid), .op_code(op_code), .op_length(op_length),
+        .align_done(), // Open
+        .seq_len(seq_len)
     );
 
 endmodule

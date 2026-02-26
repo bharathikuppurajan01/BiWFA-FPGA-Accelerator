@@ -41,7 +41,8 @@ module biwfa_master_ctrl #(
     input  wire [OFFSET_WIDTH-1:0] collision_x,
     
     // Base Solver trigger
-    output reg  base_solve_start
+    output reg  base_solve_start,
+    input  wire base_solve_done
 );
 
     localparam IDLE           = 4'd0;
@@ -176,11 +177,9 @@ module biwfa_master_ctrl #(
                 end
                 
                 SOLVE_BASE: begin
-                    // Wait for base hardware solver to compress and emit operations to CIGAR
-                    // We assume it returns an ack, for now simplified 1-cycle delay to go back to loop.
-                    // (Assuming base solver handles valid/ready handshakes internally and fires done)
-                    // TODO: add base_done handshake
-                    state <= POP_EVAL;
+                    if (base_solve_done) begin
+                        state <= POP_EVAL;
+                    end
                 end
                 
                 FINISH: begin

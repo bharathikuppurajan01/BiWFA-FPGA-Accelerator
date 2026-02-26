@@ -78,7 +78,7 @@ module biwfa_top_wrapper #(
         .engine_q_start(engine_q_start), .engine_q_end(engine_q_end), .engine_r_start(engine_r_start), .engine_r_end(engine_r_end),
         .engine_done(engine_done),
         .collision_found(collision_found), .collision_s(collision_s), .collision_k(collision_k), .collision_x(collision_x),
-        .base_solve_start(base_solve_start)
+        .base_solve_start(base_solve_start), .base_solve_done(base_solve_done)
     );
 
     // 3. BiWFA Execution Engine (Simulated stub for integration)

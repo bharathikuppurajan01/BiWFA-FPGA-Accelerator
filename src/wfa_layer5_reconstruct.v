@@ -18,7 +18,10 @@ module wfa_layer5_reconstruct #(
     output reg align_valid,
     output reg [1:0] op_code, // 0: Match, 1: Ins, 2: Del, 3: Mismatch
     output reg [OFFSET_WIDTH-1:0] op_length,
-    output reg align_done
+    output reg align_done,
+    
+    // Dynamic Sequence Length from top
+    input  wire  [OFFSET_WIDTH-1:0] seq_len
 );
 
     // Reconstructs sequence gaps and matches natively from diagonal drops
@@ -38,7 +41,7 @@ module wfa_layer5_reconstruct #(
                 op_length <= trace_x_end - trace_x_start;
                 
                 // If it hits end of sequences implicitly, mark done.
-                if (trace_x_end >= 14'd1000) begin
+                if (trace_x_end >= seq_len) begin
                     align_done <= 1;
                 end
             end
