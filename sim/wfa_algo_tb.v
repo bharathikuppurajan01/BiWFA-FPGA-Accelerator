@@ -104,14 +104,16 @@ module wfa_algo_tb;
     
     always @(posedge clk) begin
         if (align_valid) begin
+            // Manual string concatenation for Verilog-2001 (Vivado default for .v files)
+            // Shift the string left by 2 characters (16 bits) and add the new segment
+            // We'll limit it to single-digit op_lengths for this display format for simplicity.
             case (op_code)
-                2'd0: cigar_buffer = {cigar_buffer, $sformatf("%0dM", op_length)};
-                2'd1: cigar_buffer = {cigar_buffer, $sformatf("%0dI", op_length)};
-                2'd2: cigar_buffer = {cigar_buffer, $sformatf("%0dD", op_length)};
-                2'd3: cigar_buffer = {cigar_buffer, $sformatf("%0dX", op_length)};
+                2'd0: cigar_buffer = {cigar_buffer[(8*16)-17:0], 8'd48 + op_length[7:0], 8'h4D}; // "M"
+                2'd1: cigar_buffer = {cigar_buffer[(8*16)-17:0], 8'd48 + op_length[7:0], 8'h49}; // "I"
+                2'd2: cigar_buffer = {cigar_buffer[(8*16)-17:0], 8'd48 + op_length[7:0], 8'h44}; // "D"
+                2'd3: cigar_buffer = {cigar_buffer[(8*16)-17:0], 8'd48 + op_length[7:0], 8'h58}; // "X"
             endcase
-            // To ensure it displays properly as a left-aligned string, we shift it into the register.
-            // A simpler way for variable length string in Verilog without SV string type:
+            
             // Just display as it comes out!
             $display("  -> Hardware Emitted CIGAR Segment: %0d%0s", op_length, 
                 (op_code==0)?"M": (op_code==1)?"I": (op_code==2)?"D": "X"
