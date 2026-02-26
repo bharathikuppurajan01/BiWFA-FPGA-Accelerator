@@ -148,7 +148,7 @@ module biwfa_wrapper_tb;
             
             // Wait for Master FSM to finish
             wait(system_done);
-            #20; // Extra delay to catch the final CIGAR flush
+            #100; // Extra delay to catch the final CIGAR flush
             
             $display("\n[3] ALIGNMENT COMPLETE!");
             $display("==================================================");
