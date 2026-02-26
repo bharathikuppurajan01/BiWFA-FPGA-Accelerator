@@ -104,6 +104,15 @@ module biwfa_wrapper_tb;
     // CIGAR Buffer
     reg [8*64-1:0] cigar_buffer;
 
+    // --- Sequence Reconstruction Trackers ---
+    integer q_idx = 0; // Tracks position in original Query sequence
+    integer r_idx = 0; // Tracks position in original Reference sequence
+    integer a_idx = 0; // Tracks position in the new ALIGNED sequence
+    integer k, j;
+    
+    reg [7:0] aligned_Q [0:199]; // Buffer for final reconstructed Query
+    reg [7:0] aligned_R [0:199]; // Buffer for final reconstructed Ref
+
     task run_test;
         input integer length;
         input [800:1] test_name;
@@ -112,10 +121,23 @@ module biwfa_wrapper_tb;
             tb_seq_r_len = length; // Equal length tests for this basic stubbed run
             
             $display("==================================================");
-            $display("Starting Test: %0s", test_name);
-            $display("Running BiWFA Divide-and-Conquer FSM and Stack Recursion...");
+            $display("                BiWFA ALIGNMENT TEST              ");
+            $display("==================================================");
+            
+            $display("\n[1] INPUT SEQUENCES:");
+            $write("    Query (Q) : ");
+            for (j = 0; j < tb_seq_q_len; j = j + 1) $write("%c", seq_Q[j]);
+            $display(""); 
+            $write("    Ref   (R) : ");
+            for (j = 0; j < tb_seq_r_len; j = j + 1) $write("%c", seq_R[j]);
+            $display("\n");
+            
+            $display("[2] PROCESS: BiWFA Divide-and-Conquer started...");
             
             cigar_buffer = "";
+            q_idx = 0;
+            r_idx = 0;
+            a_idx = 0;
             
             rst_n = 0;
             start_alignment = 0;
@@ -124,11 +146,33 @@ module biwfa_wrapper_tb;
             #20 start_alignment = 1;
             #10 start_alignment = 0;
             
+            // Wait for Master FSM to finish
             wait(system_done);
+            #20; // Extra delay to catch the final CIGAR flush
             
-            $display("Divide-and-Conquer Traceback Completed!");
-            #10;
-            $display("Reconstructed CIGAR String Output: %0s", cigar_buffer);
+            $display("\n[3] ALIGNMENT COMPLETE!");
+            $display("==================================================");
+            $display("    Final CIGAR String : %0s", cigar_buffer);
+            $display("--------------------------------------------------");
+            $display("    RECONSTRUCTED ALIGNMENT:");
+            
+            // Print Aligned Query
+            $write("    Q: ");
+            for (j = 0; j < a_idx; j = j + 1) $write("%c", aligned_Q[j]);
+            $display("");
+            
+            // Print Alignment Matches ('|' for match, ' ' for mismatch/gap)
+            $write("       ");
+            for (j = 0; j < a_idx; j = j + 1) begin
+                if (aligned_Q[j] == aligned_R[j] && aligned_Q[j] != "-") $write("|");
+                else $write(" ");
+            end
+            $display("");
+            
+            // Print Aligned Reference
+            $write("    R: ");
+            for (j = 0; j < a_idx; j = j + 1) $write("%c", aligned_R[j]);
+            $display("\n==================================================");
             #50;
         end
     endtask
@@ -145,6 +189,28 @@ module biwfa_wrapper_tb;
             $display("  -> Base Solver Emitted Segment: %0d%0s", op_length, 
                 (op_code==0)?"M": (op_code==1)?"I": (op_code==2)?"D": "X"
             );
+            
+            // Loop through the length of the operation
+            for (k = 0; k < op_length; k = k + 1) begin
+                if (op_code == 2'd0 || op_code == 2'd3) begin 
+                    // 0: Match, 3: Mismatch -> Both sequences consume a character
+                    aligned_Q[a_idx] = seq_Q[q_idx];
+                    aligned_R[a_idx] = seq_R[r_idx];
+                    q_idx = q_idx + 1;
+                    r_idx = r_idx + 1;
+                end else if (op_code == 2'd1) begin 
+                    // 1: Insertion (Query has character, Reference has a gap)
+                    aligned_Q[a_idx] = seq_Q[q_idx];
+                    aligned_R[a_idx] = "-";
+                    q_idx = q_idx + 1;
+                end else if (op_code == 2'd2) begin 
+                    // 2: Deletion (Reference has character, Query has a gap)
+                    aligned_Q[a_idx] = "-";
+                    aligned_R[a_idx] = seq_R[r_idx];
+                    r_idx = r_idx + 1;
+                end
+                a_idx = a_idx + 1;
+            end
         end
     end
 
@@ -157,19 +223,21 @@ module biwfa_wrapper_tb;
         $display("==================================================");
         $display("Testing Fully Recursive BiWFA Structure");
         
-        // Load some fake sequences to test the leaf node base solver character fetching
-        for(i=0; i<100; i=i+1) begin
-            seq_Q[i] = "A";
-            seq_R[i] = "A";
-        end
-        seq_R[5] = "C"; // Add a mismatch
+        // Q: ACGTAACCGGT
+        // R: ACGTTACCGGT
+        seq_Q[0]="A"; seq_R[0]="A";
+        seq_Q[1]="C"; seq_R[1]="C";
+        seq_Q[2]="G"; seq_R[2]="G";
+        seq_Q[3]="T"; seq_R[3]="T";
+        seq_Q[4]="A"; seq_R[4]="T"; // Mismatch
+        seq_Q[5]="A"; seq_R[5]="A";
+        seq_Q[6]="C"; seq_R[6]="C";
+        seq_Q[7]="C"; seq_R[7]="C";
+        seq_Q[8]="G"; seq_R[8]="G";
+        seq_Q[9]="G"; seq_R[9]="G";
+        seq_Q[10]="T"; seq_R[10]="T";
         
-        // This will trigger the stack to push [0, 10], pop it, realize it > THRESHOLD (4)
-        // Fire engine_start. Our fake engine cuts it at x=5.
-        // Stack pushes right [5, 10], left [0, 5].
-        // Pops [0, 5], splits to [2, 5], [0, 2]... etc.
-        // Eventually leaf nodes hit Base Solver and stream out CIGARs!
-        run_test(10, "Base Recursive Split Test");
+        run_test(11, "Base Recursive Split Test");
         
         $finish;
     end
