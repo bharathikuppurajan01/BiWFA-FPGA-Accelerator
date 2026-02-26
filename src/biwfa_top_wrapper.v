@@ -22,7 +22,15 @@ module biwfa_top_wrapper #(
     // Compressed Output Interface
     output wire align_valid,
     output wire [1:0] op_code,
-    output wire [OFFSET_WIDTH-1:0] op_length
+    output wire [OFFSET_WIDTH-1:0] op_length,
+
+    // Base Solver Memory Fetch Interface (Layer 1)
+    output wire base_fetch_req,
+    output wire [OFFSET_WIDTH-1:0] base_fetch_q_addr,
+    output wire [OFFSET_WIDTH-1:0] base_fetch_r_addr,
+    input  wire base_fetch_valid,
+    input  wire [7:0] base_fetch_q_char,
+    input  wire [7:0] base_fetch_r_char
 );
 
     // Segmentation Stack wires
@@ -42,11 +50,6 @@ module biwfa_top_wrapper #(
     
     // Base Solver wires
     wire base_solve_start, base_solve_done;
-    wire base_fetch_req;
-    wire [OFFSET_WIDTH-1:0] base_fetch_q_addr, base_fetch_r_addr;
-    wire base_fetch_valid = 1'b0; // TODO: Connect to Layer 1 RAM
-    wire [7:0] base_fetch_q_char = 8'd0;
-    wire [7:0] base_fetch_r_char = 8'd0;
     
     wire base_cigar_valid;
     wire [1:0] base_cigar_op;

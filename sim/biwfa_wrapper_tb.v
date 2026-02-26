@@ -37,26 +37,33 @@ module biwfa_wrapper_tb;
         .start_alignment(start_alignment),
         .seq_q_len(tb_seq_q_len), .seq_r_len(tb_seq_r_len),
         .system_done(system_done),
-        .align_valid(align_valid), .op_code(op_code), .op_length(op_length)
+        .align_valid(align_valid), .op_code(op_code), .op_length(op_length),
+        
+        // Memory wiring
+        .base_fetch_req(base_fetch_req),
+        .base_fetch_q_addr(base_fetch_q_addr),
+        .base_fetch_r_addr(base_fetch_r_addr),
+        .base_fetch_valid(base_fetch_valid),
+        .base_fetch_q_char(base_fetch_q_char),
+        .base_fetch_r_char(base_fetch_r_char)
     );
 
-    // Override the wrapper's internal disconnected wires for the simulation
-    // Since Verilog allows hierarchical referencing, we can drive the base struct's fetch valid from here.
-    // In a real system, Layer 1 streams would be connected.
-    always @(posedge clk) begin
-        if (dut.base_fetch_req) begin
-            base_fetch_valid <= 1;
-            base_fetch_q_char <= seq_Q[dut.base_fetch_q_addr];
-            base_fetch_r_char <= seq_R[dut.base_fetch_r_addr];
-        end else begin
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             base_fetch_valid <= 0;
+            base_fetch_q_char <= 0;
+            base_fetch_r_char <= 0;
+        end else begin
+            // 1-cycle latency mock BRAM
+            if (base_fetch_req) begin
+                base_fetch_valid <= 1;
+                base_fetch_q_char <= seq_Q[base_fetch_q_addr];
+                base_fetch_r_char <= seq_R[base_fetch_r_addr];
+            end else begin
+                base_fetch_valid <= 0;
+            end
         end
     end
-    
-    // Push the mocked fetch values down into the wrapper instance
-    assign dut.base_fetch_valid = base_fetch_valid;
-    assign dut.base_fetch_q_char = base_fetch_q_char;
-    assign dut.base_fetch_r_char = base_fetch_r_char;
 
     // Furthermore, mapping the stubbed "Engine" logic in the wrapper.
     // For this simulation of ONLY the divide and conquer framework, we can intercept `engine_start` internally
