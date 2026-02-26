@@ -40,7 +40,11 @@ module wfa_algo_tb;
     
     // Config port mapped to dut.seq_len
     reg [13:0] tb_seq_len;
-
+    
+    // CIGAR Buffer
+    reg [8*16-1:0] cigar_buffer;
+    integer cigar_idx;
+    
     // Output assignments for top seq_len port
     assign dut.seq_len = tb_seq_len; // But we need to remove .seq_len(14'd10) from dut instance
     
@@ -55,6 +59,9 @@ module wfa_algo_tb;
             $display("==================================================");
             $display("Starting Test: %0s", test_name);
             $display("Sequence Length: %0d | Expected Edit Distance: %0d", length, expected_distance);
+            
+            // Clear CIGAR buffer for new test
+            cigar_buffer = "";
             
             // Reset and load
             rst_n = 0;
@@ -82,6 +89,10 @@ module wfa_algo_tb;
             $display("Hardware Alignment Completed!");
             $display("Calculated Edit Distance (s): %d", final_edit_distance);
             
+            // Print CIGAR buffer
+            #10;
+            $display("Reconstructed CIGAR String: %0s", cigar_buffer);
+            
             if (final_edit_distance == expected_distance) begin
                 $display("✅ SUCCESS: Test passed.");
             end else begin
@@ -90,6 +101,23 @@ module wfa_algo_tb;
             #50;
         end
     endtask
+    
+    always @(posedge clk) begin
+        if (align_valid) begin
+            case (op_code)
+                2'd0: cigar_buffer = {cigar_buffer, $sformatf("%0dM", op_length)};
+                2'd1: cigar_buffer = {cigar_buffer, $sformatf("%0dI", op_length)};
+                2'd2: cigar_buffer = {cigar_buffer, $sformatf("%0dD", op_length)};
+                2'd3: cigar_buffer = {cigar_buffer, $sformatf("%0dX", op_length)};
+            endcase
+            // To ensure it displays properly as a left-aligned string, we shift it into the register.
+            // A simpler way for variable length string in Verilog without SV string type:
+            // Just display as it comes out!
+            $display("  -> Hardware Emitted CIGAR Segment: %0d%0s", op_length, 
+                (op_code==0)?"M": (op_code==1)?"I": (op_code==2)?"D": "X"
+            );
+        end
+    end
 
     initial begin
         clk = 0;
