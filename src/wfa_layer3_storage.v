@@ -32,7 +32,10 @@ module wfa_layer3_storage #(
     
     // Cross-check port for the opposite engine
     input  wire signed [K_WIDTH-1:0] cross_k,
-    output wire [OFFSET_WIDTH-1:0] cross_wf_curr
+    output wire [OFFSET_WIDTH-1:0] cross_wf_curr,
+    
+    // Clear pipeline for subproblem runs
+    input  wire clear_all
 );
 
     localparam ARRAY_SIZE = K_MAX - K_MIN + 1;
@@ -59,13 +62,20 @@ module wfa_layer3_storage #(
                 WF_next[i] <= NULL_OFFSET;
             end
         end else begin
-            if (wf_in_valid) begin
-                WF_next[addr_in] <= wf_in_x;
-            end
-            
-            if (next_score_step) begin
+            if (clear_all) begin
                 for (i=0; i<ARRAY_SIZE; i=i+1) begin
-                    WF_curr[i] <= WF_next[i];
+                    WF_curr[i] <= NULL_OFFSET;
+                    WF_next[i] <= NULL_OFFSET;
+                end
+            end else begin
+                if (wf_in_valid) begin
+                    WF_next[addr_in] <= wf_in_x;
+                end
+                
+                if (next_score_step) begin
+                    for (i=0; i<ARRAY_SIZE; i=i+1) begin
+                        WF_curr[i] <= WF_next[i];
+                    end
                 end
             end
         end

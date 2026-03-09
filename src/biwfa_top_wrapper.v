@@ -119,6 +119,7 @@ module biwfa_top_wrapper #(
     // We instantiate essentially two copies of WFA Master Ctrl just to drive score sweeps,
     // but the *engine controller* should be a unified state machine. 
     wire engine_fwd_complete, engine_bwd_complete;
+    wire engine_init_clear;
     
     wfa_master_ctrl #(
         .SCORE_WIDTH(SCORE_WIDTH), .K_WIDTH(K_WIDTH), .OFFSET_WIDTH(OFFSET_WIDTH)
@@ -126,7 +127,7 @@ module biwfa_top_wrapper #(
         .clk(clk), .rst_n(rst_n),
         .start(engine_start), .done(engine_done), .final_score(),
         .current_s(current_s), .current_k_proc(fwd_current_k_proc), .k_proc_valid(fwd_k_proc_valid), 
-        .next_score_step(next_score_step),
+        .next_score_step(next_score_step), .init_clear(engine_init_clear),
         .k_min(k_min_active), .k_max(k_max_active),
         .alignment_complete_flag(collision_found | engine_fwd_complete), 
         .intersection_found(collision_found),
@@ -202,7 +203,8 @@ module biwfa_top_wrapper #(
         .req_wf_read(fwd_k_proc_valid), .req_k(fwd_current_k_proc),
         .wf_out_del(fwd_wf_out_del), .wf_out_ins(fwd_wf_out_ins), .wf_out_mis(fwd_wf_out_mis),
         .current_fwd_x(fwd_current_x),
-        .cross_k(req_cross_fwd_k), .cross_wf_curr(cross_fwd_curr_x)
+        .cross_k(req_cross_fwd_k), .cross_wf_curr(cross_fwd_curr_x),
+        .clear_all(engine_init_clear)
     );
 
     wire [OFFSET_WIDTH-1:0] bwd_current_x;
@@ -218,7 +220,8 @@ module biwfa_top_wrapper #(
         .req_wf_read(bwd_k_proc_valid), .req_k(bwd_current_k_proc),
         .wf_out_del(bwd_wf_out_del), .wf_out_ins(bwd_wf_out_ins), .wf_out_mis(bwd_wf_out_mis),
         .current_fwd_x(bwd_current_x),
-        .cross_k(req_cross_bwd_k), .cross_wf_curr(cross_bwd_curr_x)
+        .cross_k(req_cross_bwd_k), .cross_wf_curr(cross_bwd_curr_x),
+        .clear_all(engine_init_clear)
     );
 
     // ---------------------------------------------------------

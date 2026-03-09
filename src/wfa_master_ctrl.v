@@ -18,6 +18,7 @@ module wfa_master_ctrl #(
     output reg  signed [K_WIDTH-1:0] current_k_proc,
     output reg  k_proc_valid, // Tells Layer 2/3 to process current_k_proc
     output reg  next_score_step, // Triggers WF_next -> WF_curr swap
+    output reg  init_clear,      // Triggers Layer 3 to wipe old WF memories
     
     // Global Loop Bounds
     output reg  signed [K_WIDTH-1:0] k_min,
@@ -37,6 +38,7 @@ module wfa_master_ctrl #(
     localparam WAIT_DPU = 3'd3;
     localparam SWAP_WF = 3'd4;
     localparam DONE_STATE = 3'd5;
+    localparam CLEAR_MEM = 3'd6;
 
     reg [2:0] state;
 
@@ -49,11 +51,13 @@ module wfa_master_ctrl #(
             current_k_proc <= 0;
             k_proc_valid <= 0;
             next_score_step <= 0;
+            init_clear <= 0;
             k_min <= 0;
             k_max <= 0;
         end else begin
             k_proc_valid <= 0;
             next_score_step <= 0;
+            init_clear <= 0;
             
             case (state)
                 IDLE: begin
@@ -62,8 +66,13 @@ module wfa_master_ctrl #(
                         current_s <= 0;
                         k_min <= 0;
                         k_max <= 0;
-                        state <= INIT_S0;
+                        init_clear <= 1;
+                        state <= CLEAR_MEM;
                     end
+                end
+                
+                CLEAR_MEM: begin
+                    state <= INIT_S0;
                 end
                 
                 INIT_S0: begin
