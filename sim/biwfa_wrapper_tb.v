@@ -216,6 +216,11 @@ module biwfa_wrapper_tb;
     end
 
     initial begin
+        // Setup waveform dumping for Vivado Simulation
+        $dumpfile("biwfa_sim.vcd");
+        // Dump all variables in the biwfa_wrapper_tb module and its submodules
+        $dumpvars(0, biwfa_wrapper_tb);
+
         clk = 0;
         rst_n = 0;
         start_alignment = 0;
