@@ -122,7 +122,7 @@ module biwfa_wrapper_tb;
 
             
             $display("==================================================");
-            $display("                BiWFA ALIGNMENT TEST              ");
+            $display("       BiWFA ALIGNMENT TEST: %0s", test_name);
             $display("==================================================");
             
             $display("\n[1] INPUT SEQUENCES:");
@@ -227,39 +227,49 @@ module biwfa_wrapper_tb;
         #10;
         
         $display("==================================================");
-        $display("Testing Fully Recursive BiWFA Structure");
+        $display("Testing Fully Recursive BiWFA Structure - All Examples");
         
-        // Initialize memory with zeros to safely determine sequence boundary
+        // ------------------------- EXAMPLE 1 -------------------------
         for (i = 0; i < MAX_SEQ_LEN; i = i + 1) begin
             seq_Q[i] = 8'h00;
             seq_R[i] = 8'h00;
         end
-
-        // Load sequences dynamically
         $readmemh("query.mem", seq_Q);
         $readmemh("reference.mem", seq_R);
-
-        // Dynamically detect lengths
         tb_seq_q_len = 0;
-        while(tb_seq_q_len < MAX_SEQ_LEN && seq_Q[tb_seq_q_len] != 8'h00 && seq_Q[tb_seq_q_len] !== 8'hxx) begin
-            tb_seq_q_len = tb_seq_q_len + 1;
-        end
-        
+        while(tb_seq_q_len < MAX_SEQ_LEN && seq_Q[tb_seq_q_len] != 8'h00 && seq_Q[tb_seq_q_len] !== 8'hxx) tb_seq_q_len = tb_seq_q_len + 1;
         tb_seq_r_len = 0;
-        while(tb_seq_r_len < MAX_SEQ_LEN && seq_R[tb_seq_r_len] != 8'h00 && seq_R[tb_seq_r_len] !== 8'hxx) begin
-            tb_seq_r_len = tb_seq_r_len + 1;
-        end
+        while(tb_seq_r_len < MAX_SEQ_LEN && seq_R[tb_seq_r_len] != 8'h00 && seq_R[tb_seq_r_len] !== 8'hxx) tb_seq_r_len = tb_seq_r_len + 1;
+        if (tb_seq_q_len == 0 || tb_seq_r_len == 0) $display("ERROR: Sequences loaded are empty for Example 1.");
+        else run_test("Example 1 (query.mem / reference.mem)");
 
-        if (tb_seq_q_len == 0 || tb_seq_r_len == 0) begin
-            $display("ERROR: Sequences loaded are empty. Check query.mem and reference.mem");
-            $finish;
+        // ------------------------- EXAMPLE 2 -------------------------
+        for (i = 0; i < MAX_SEQ_LEN; i = i + 1) begin
+            seq_Q[i] = 8'h00;
+            seq_R[i] = 8'h00;
         end
+        $readmemh("query2.mem", seq_Q);
+        $readmemh("reference2.mem", seq_R);
+        tb_seq_q_len = 0;
+        while(tb_seq_q_len < MAX_SEQ_LEN && seq_Q[tb_seq_q_len] != 8'h00 && seq_Q[tb_seq_q_len] !== 8'hxx) tb_seq_q_len = tb_seq_q_len + 1;
+        tb_seq_r_len = 0;
+        while(tb_seq_r_len < MAX_SEQ_LEN && seq_R[tb_seq_r_len] != 8'h00 && seq_R[tb_seq_r_len] !== 8'hxx) tb_seq_r_len = tb_seq_r_len + 1;
+        if (tb_seq_q_len == 0 || tb_seq_r_len == 0) $display("ERROR: Sequences loaded are empty for Example 2.");
+        else run_test("Example 2 (query2.mem / reference2.mem)");
 
-        // Dynamically set mock collision (midpoint of the max sequence length)
-        // Ensure simulation handles different block sizes gracefully by forcing center
-        // Or leave it to the original logic which just splits based on engine_q_end - engine_q_start dynamically.
-        
-        run_test("Dynamic Sized Base Recursive Split Test");
+        // ------------------------- EXAMPLE 3 -------------------------
+        for (i = 0; i < MAX_SEQ_LEN; i = i + 1) begin
+            seq_Q[i] = 8'h00;
+            seq_R[i] = 8'h00;
+        end
+        $readmemh("query3.mem", seq_Q);
+        $readmemh("reference3.mem", seq_R);
+        tb_seq_q_len = 0;
+        while(tb_seq_q_len < MAX_SEQ_LEN && seq_Q[tb_seq_q_len] != 8'h00 && seq_Q[tb_seq_q_len] !== 8'hxx) tb_seq_q_len = tb_seq_q_len + 1;
+        tb_seq_r_len = 0;
+        while(tb_seq_r_len < MAX_SEQ_LEN && seq_R[tb_seq_r_len] != 8'h00 && seq_R[tb_seq_r_len] !== 8'hxx) tb_seq_r_len = tb_seq_r_len + 1;
+        if (tb_seq_q_len == 0 || tb_seq_r_len == 0) $display("ERROR: Sequences loaded are empty for Example 3.");
+        else run_test("Example 3 (query3.mem / reference3.mem)");
         
         $finish;
     end
