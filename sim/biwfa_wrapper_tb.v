@@ -86,7 +86,9 @@ module biwfa_wrapper_tb;
                 fake_engine_done <= 1;
                 fake_collision <= 1;
                 // Cut the sequence length in half relative to local
-                fake_x <= (dut.engine_q_end - dut.engine_q_start) / 2;
+                // If the block is very small, force collision at 1 to ensure forward progress
+                fake_x <= ((dut.engine_q_end - dut.engine_q_start) / 2 > 0) ? 
+                           (dut.engine_q_end - dut.engine_q_start) / 2 : 1;
             end
         end
     end
@@ -139,6 +141,7 @@ module biwfa_wrapper_tb;
             q_idx = 0;
             r_idx = 0;
             a_idx = 0;
+            wait_timeout = 0;
             
             rst_n = 0;
             start_alignment = 0;
@@ -147,8 +150,16 @@ module biwfa_wrapper_tb;
             #20 start_alignment = 1;
             #10 start_alignment = 0;
             
-            // Wait for Master FSM to finish
-            wait(system_done);
+            // Wait for Master FSM to finish with a timeout to prevent infinite hangs
+            while(!system_done && wait_timeout < 10000) begin
+                #10;
+                wait_timeout = wait_timeout + 1;
+            end
+            
+            if (wait_timeout >= 10000) begin
+                $display("\n[!] ERROR: Simulation timed out for this sequence pair! Divide and conquer likely fell into an infinite recursion block.");
+                $display("This usually happens if fake_collision intersects repetitively on the same block without progressing (< THRESHOLD_LEN).");
+            end else begin
             #100; // Extra delay to catch the final CIGAR flush
             
             $display("\n[3] ALIGNMENT COMPLETE!");
@@ -175,8 +186,11 @@ module biwfa_wrapper_tb;
             for (j = 0; j < a_idx; j = j + 1) $write("%c", aligned_R[j]);
             $display("\n==================================================");
             #50;
+            end
         end
     endtask
+
+    integer wait_timeout = 0;
 
     always @(posedge clk) begin
         if (align_valid) begin
