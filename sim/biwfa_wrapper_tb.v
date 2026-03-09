@@ -15,14 +15,11 @@ module biwfa_wrapper_tb;
     wire [1:0] op_code;
     wire [13:0] op_length;
 
-    // We will instantiate the wrapper but we also need to mock the Layer 1 sequence memory 
-    // since the BASE_SOLVER requests fetches from it.
-    wire base_fetch_req;
-    wire [13:0] base_fetch_q_addr;
-    wire [13:0] base_fetch_r_addr;
-    reg base_fetch_valid;
-    reg [7:0] base_fetch_q_char;
-    reg [7:0] base_fetch_r_char;
+    // Preload Interface mapped to DUT Layer 1 Memories
+    reg preload_en;
+    reg [13:0] preload_addr;
+    reg [7:0] preload_q_char;
+    reg [7:0] preload_r_char;
 
     parameter MAX_SEQ_LEN = 2000;
 
@@ -42,66 +39,13 @@ module biwfa_wrapper_tb;
         .align_valid(align_valid), .op_code(op_code), .op_length(op_length),
         
         // Memory wiring
-        .base_fetch_req(base_fetch_req),
-        .base_fetch_q_addr(base_fetch_q_addr),
-        .base_fetch_r_addr(base_fetch_r_addr),
-        .base_fetch_valid(base_fetch_valid),
-        .base_fetch_q_char(base_fetch_q_char),
-        .base_fetch_r_char(base_fetch_r_char)
+        .preload_en(preload_en),
+        .preload_addr(preload_addr),
+        .preload_q_char(preload_q_char),
+        .preload_r_char(preload_r_char)
     );
 
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            base_fetch_valid <= 0;
-            base_fetch_q_char <= 0;
-            base_fetch_r_char <= 0;
-        end else begin
-            // 1-cycle latency mock BRAM
-            if (base_fetch_req) begin
-                base_fetch_valid <= 1;
-                base_fetch_q_char <= seq_Q[base_fetch_q_addr];
-                base_fetch_r_char <= seq_R[base_fetch_r_addr];
-            end else begin
-                base_fetch_valid <= 0;
-            end
-        end
-    end
 
-    // Furthermore, mapping the stubbed "Engine" logic in the wrapper.
-    // For this simulation of ONLY the divide and conquer framework, we can intercept `engine_start` internally
-    // and instantly provide a fake "collision" to force the stack to divide.
-    // Let's force an intersection exactly halfway through the block.
-    reg fake_engine_done;
-    reg fake_collision;
-    reg [13:0] fake_x;
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            fake_engine_done <= 0;
-            fake_collision <= 0;
-            fake_x <= 0;
-        end else begin
-            fake_engine_done <= 0;
-            if (dut.engine_start) begin
-                // 1-cycle fake engine delay
-                fake_engine_done <= 1;
-                fake_collision <= 1;
-                // Cut the sequence length in half relative to local
-                // If the block is very small, force collision at 1 to ensure forward progress
-                fake_x <= ((dut.engine_q_end - dut.engine_q_start) / 2 > 0) ? 
-                           (dut.engine_q_end - dut.engine_q_start) / 2 : 1;
-            end
-        end
-    end
-    
-    // Override internal wire assignments using force
-    initial begin
-        force dut.engine_done = fake_engine_done;
-        force dut.collision_found = fake_collision;
-        force dut.collision_s = 10'd1; // Arbitrary score > 0 to force subdivision
-        force dut.collision_k = 10'd0; // Assume diagonal 0 collision
-        // collision_x is relative to q_start in the master controller logic
-        force dut.collision_x = fake_x; 
-    end
 
     always #5 clk = ~clk;
 
@@ -145,7 +89,18 @@ module biwfa_wrapper_tb;
             
             rst_n = 0;
             start_alignment = 0;
+            preload_en = 0;
             #20 rst_n = 1;
+
+            $display("[2a] PRELOADING SEQUENCES TO DUT RAMs...");
+            preload_en = 1;
+            for (i = 0; i < (tb_seq_q_len > tb_seq_r_len ? tb_seq_q_len : tb_seq_r_len); i = i + 1) begin
+                preload_addr = i;
+                preload_q_char = seq_Q[i];
+                preload_r_char = seq_R[i];
+                #10;
+            end
+            preload_en = 0;
             
             #20 start_alignment = 1;
             #10 start_alignment = 0;
@@ -238,6 +193,10 @@ module biwfa_wrapper_tb;
         clk = 0;
         rst_n = 0;
         start_alignment = 0;
+        preload_en = 0;
+        preload_addr = 0;
+        preload_q_char = 0;
+        preload_r_char = 0;
         #10;
         
         $display("==================================================");

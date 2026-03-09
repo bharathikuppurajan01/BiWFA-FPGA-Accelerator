@@ -104,7 +104,8 @@ module wfa_master_ctrl #(
                     k_max <= k_max + 1;
                     
                     // Reset diagonal iterator for next score
-                    current_k_proc <= k_min - 1; // start from new min
+                    // Old k_min is used here. We want new_k_min - 1 (which is old k_min - 2)
+                    current_k_proc <= k_min - 2; 
                     state <= RUN_DIAGS;
                 end
                 

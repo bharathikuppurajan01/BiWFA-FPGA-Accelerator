@@ -15,6 +15,11 @@ module wfa_layer1_streaming #(
     input  wire [OFFSET_WIDTH-1:0] req_x,
     output wire req_ready,
     
+    // Dynamic Sequence Sub-problem Bounds
+    input  wire [OFFSET_WIDTH-1:0] q_base, // FWD: engine_q_start, BWD: engine_q_end - 1
+    input  wire [OFFSET_WIDTH-1:0] r_base, // FWD: engine_r_start, BWD: engine_r_end - 1
+    input  wire dir_bwd, // 0: Forward (Add relative), 1: Backward (Subtract relative)
+    
     // Sequence memory pre-load interface
     input  wire preload_en,
     input  wire [ADDR_WIDTH-1:0] preload_addr,
@@ -73,13 +78,16 @@ module wfa_layer1_streaming #(
     end
 
     // Diagonal Address Generator
-    // Q_addr = x, R_addr = x - k
+    // Q_addr = base (+/-) x
+    // R_addr = base (+/-) (x - k)
     wire signed [K_WIDTH-1:0] curr_k = fifo_k[fifo_rd_ptr];
     wire [OFFSET_WIDTH-1:0] curr_x = fifo_x[fifo_rd_ptr];
-    wire [ADDR_WIDTH-1:0] q_addr = curr_x;
     
-    // Signed math for reference address
-    wire [ADDR_WIDTH-1:0] r_addr = curr_x - curr_k;
+    wire [ADDR_WIDTH-1:0] q_addr = dir_bwd ? (q_base - curr_x) : (q_base + curr_x);
+    
+    // Signed math for reference address relative offset
+    wire [OFFSET_WIDTH-1:0] r_offset = curr_x - curr_k;
+    wire [ADDR_WIDTH-1:0] r_addr = dir_bwd ? (r_base - r_offset) : (r_base + r_offset);
 
     reg [ADDR_WIDTH-1:0] q_addr_reg, r_addr_reg;
     reg signed [K_WIDTH-1:0] k_delay;

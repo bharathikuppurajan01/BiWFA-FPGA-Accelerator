@@ -28,7 +28,11 @@ module wfa_layer3_storage #(
     output wire [OFFSET_WIDTH-1:0] wf_out_mis, // O(s-1, k)
     
     // Read Ports feeding Layer 4 BiWFA Intersection logic
-    output wire [OFFSET_WIDTH-1:0] current_fwd_x // O(s, k)
+    output wire [OFFSET_WIDTH-1:0] current_fwd_x, // O(s, k)
+    
+    // Cross-check port for the opposite engine
+    input  wire signed [K_WIDTH-1:0] cross_k,
+    output wire [OFFSET_WIDTH-1:0] cross_wf_curr
 );
 
     localparam ARRAY_SIZE = K_MAX - K_MIN + 1;
@@ -78,5 +82,9 @@ module wfa_layer3_storage #(
     assign wf_out_mis = (mis_valid) ? WF_curr[read_k_mis - K_MIN] : NULL_OFFSET;
     
     assign current_fwd_x = WF_next[req_k - K_MIN]; // Exporting the newly extended value for intercept tests
+
+    // Cross-Check Port (Asynchronous read of previous score iteration)
+    wire cross_valid = (cross_k >= k_min_active && cross_k <= k_max_active);
+    assign cross_wf_curr = cross_valid ? WF_curr[cross_k - K_MIN] : NULL_OFFSET;
 
 endmodule

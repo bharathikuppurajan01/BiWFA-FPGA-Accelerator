@@ -42,7 +42,8 @@ module wfa_layer2_compute #(
     output reg alignment_complete_flag,
     
     // Dynamic Sequence Length from top
-    input  wire  [OFFSET_WIDTH-1:0] seq_len
+    input  wire  [OFFSET_WIDTH-1:0] q_len_in,
+    input  wire  [OFFSET_WIDTH-1:0] r_len_in
 );
 
     localparam SCORE_WIDTH = 10;
@@ -53,8 +54,8 @@ module wfa_layer2_compute #(
     reg signed [K_WIDTH-1:0] active_k;
     reg [OFFSET_WIDTH-1:0] active_x;
     
-    wire [OFFSET_WIDTH-1:0] q_len = seq_len;
-    wire [OFFSET_WIDTH-1:0] r_len = seq_len;
+    wire [OFFSET_WIDTH-1:0] q_len = q_len_in;
+    wire [OFFSET_WIDTH-1:0] r_len = r_len_in;
 
     // Combinatorial expressions for recurrence
     wire [OFFSET_WIDTH-1:0] del_val = (wf_in_del == NULL_OFFSET) ? 14'd0 : wf_in_del + 1;
@@ -94,6 +95,7 @@ module wfa_layer2_compute #(
                         
                         if (current_s == 0 && current_k_proc == 0) begin
                             active_x <= 0;
+                            alignment_complete_flag <= 0;
                         end else begin
                             // Handle NULL_OFFSET underflow protection explicitly
                             // Find Max
