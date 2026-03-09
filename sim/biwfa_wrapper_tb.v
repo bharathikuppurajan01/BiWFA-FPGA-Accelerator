@@ -231,8 +231,8 @@ module biwfa_wrapper_tb;
         end
 
         // Load sequences dynamically
-        $readmemh("query.txt", seq_Q);
-        $readmemh("reference.txt", seq_R);
+        $readmemh("query.mem", seq_Q);
+        $readmemh("reference.mem", seq_R);
 
         // Dynamically detect lengths
         tb_seq_q_len = 0;
@@ -246,7 +246,7 @@ module biwfa_wrapper_tb;
         end
 
         if (tb_seq_q_len == 0 || tb_seq_r_len == 0) begin
-            $display("ERROR: Sequences loaded are empty. Check query.txt and reference.txt");
+            $display("ERROR: Sequences loaded are empty. Check query.mem and reference.mem");
             $finish;
         end
 
