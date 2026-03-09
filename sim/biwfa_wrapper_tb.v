@@ -24,13 +24,15 @@ module biwfa_wrapper_tb;
     reg [7:0] base_fetch_q_char;
     reg [7:0] base_fetch_r_char;
 
+    parameter MAX_SEQ_LEN = 2000;
+
     // Test Variables
-    reg [7:0] seq_Q [0:99];
-    reg [7:0] seq_R [0:99];
+    reg [7:0] seq_Q [0:MAX_SEQ_LEN-1];
+    reg [7:0] seq_R [0:MAX_SEQ_LEN-1];
     integer i;
 
     biwfa_top_wrapper #(
-        .SCORE_WIDTH(10), .MAX_SEQ_LEN(100), .ADDR_WIDTH(14),
+        .SCORE_WIDTH(10), .MAX_SEQ_LEN(MAX_SEQ_LEN), .ADDR_WIDTH(14),
         .K_WIDTH(10), .OFFSET_WIDTH(14), .THRESHOLD_LEN(4)
     ) dut (
         .clk(clk), .rst_n(rst_n),
@@ -102,7 +104,7 @@ module biwfa_wrapper_tb;
     always #5 clk = ~clk;
 
     // CIGAR Buffer
-    reg [8*64-1:0] cigar_buffer;
+    reg [8*MAX_SEQ_LEN-1:0] cigar_buffer;
 
     // --- Sequence Reconstruction Trackers ---
     integer q_idx = 0; // Tracks position in original Query sequence
@@ -110,15 +112,14 @@ module biwfa_wrapper_tb;
     integer a_idx = 0; // Tracks position in the new ALIGNED sequence
     integer k, j;
     
-    reg [7:0] aligned_Q [0:199]; // Buffer for final reconstructed Query
-    reg [7:0] aligned_R [0:199]; // Buffer for final reconstructed Ref
+    reg [7:0] aligned_Q [0:MAX_SEQ_LEN*2-1]; // Buffer for final reconstructed Query
+    reg [7:0] aligned_R [0:MAX_SEQ_LEN*2-1]; // Buffer for final reconstructed Ref
 
     task run_test;
-        input integer length;
         input [800:1] test_name;
         begin
-            tb_seq_q_len = length;
-            tb_seq_r_len = length; // Equal length tests for this basic stubbed run
+            // Lengths tb_seq_q_len and tb_seq_r_len are dynamically calculated before calling run_test
+
             
             $display("==================================================");
             $display("                BiWFA ALIGNMENT TEST              ");
@@ -180,10 +181,10 @@ module biwfa_wrapper_tb;
     always @(posedge clk) begin
         if (align_valid) begin
             case (op_code)
-                2'd0: cigar_buffer = {cigar_buffer[(8*64)-17:0], 8'd48 + op_length[7:0], 8'h4D}; // "M"
-                2'd1: cigar_buffer = {cigar_buffer[(8*64)-17:0], 8'd48 + op_length[7:0], 8'h49}; // "I"
-                2'd2: cigar_buffer = {cigar_buffer[(8*64)-17:0], 8'd48 + op_length[7:0], 8'h44}; // "D"
-                2'd3: cigar_buffer = {cigar_buffer[(8*64)-17:0], 8'd48 + op_length[7:0], 8'h58}; // "X"
+                2'd0: cigar_buffer = {cigar_buffer[(8*MAX_SEQ_LEN)-17:0], 8'd48 + op_length[7:0], 8'h4D}; // "M"
+                2'd1: cigar_buffer = {cigar_buffer[(8*MAX_SEQ_LEN)-17:0], 8'd48 + op_length[7:0], 8'h49}; // "I"
+                2'd2: cigar_buffer = {cigar_buffer[(8*MAX_SEQ_LEN)-17:0], 8'd48 + op_length[7:0], 8'h44}; // "D"
+                2'd3: cigar_buffer = {cigar_buffer[(8*MAX_SEQ_LEN)-17:0], 8'd48 + op_length[7:0], 8'h58}; // "X"
             endcase
             
             $display("  -> Base Solver Emitted Segment: %0d%0s", op_length, 
@@ -223,23 +224,40 @@ module biwfa_wrapper_tb;
         $display("==================================================");
         $display("Testing Fully Recursive BiWFA Structure");
         
-        // Q: ACGTAACCGGT
-        // R: ACGTTACCGGT
-        seq_Q[0]="A"; seq_R[0]="A";
-        seq_Q[1]="C"; seq_R[1]="C";
-        seq_Q[2]="G"; seq_R[2]="G";
-        seq_Q[3]="T"; seq_R[3]="T";
-        seq_Q[4]="A"; seq_R[4]="T"; // Mismatch
-        seq_Q[5]="A"; seq_R[5]="A";
-        seq_Q[6]="C"; seq_R[6]="C";
-        seq_Q[7]="C"; seq_R[7]="C";
-        seq_Q[8]="G"; seq_R[8]="G";
-        seq_Q[9]="G"; seq_R[9]="G";
-        seq_Q[10]="T"; seq_R[10]="T";
+        // Initialize memory with zeros to safely determine sequence boundary
+        for (i = 0; i < MAX_SEQ_LEN; i = i + 1) begin
+            seq_Q[i] = 8'h00;
+            seq_R[i] = 8'h00;
+        end
+
+        // Load sequences dynamically
+        $readmemh("query.txt", seq_Q);
+        $readmemh("reference.txt", seq_R);
+
+        // Dynamically detect lengths
+        tb_seq_q_len = 0;
+        while(tb_seq_q_len < MAX_SEQ_LEN && seq_Q[tb_seq_q_len] != 8'h00 && seq_Q[tb_seq_q_len] !== 8'hxx) begin
+            tb_seq_q_len = tb_seq_q_len + 1;
+        end
         
-        run_test(11, "Base Recursive Split Test");
+        tb_seq_r_len = 0;
+        while(tb_seq_r_len < MAX_SEQ_LEN && seq_R[tb_seq_r_len] != 8'h00 && seq_R[tb_seq_r_len] !== 8'hxx) begin
+            tb_seq_r_len = tb_seq_r_len + 1;
+        end
+
+        if (tb_seq_q_len == 0 || tb_seq_r_len == 0) begin
+            $display("ERROR: Sequences loaded are empty. Check query.txt and reference.txt");
+            $finish;
+        end
+
+        // Dynamically set mock collision (midpoint of the max sequence length)
+        // Ensure simulation handles different block sizes gracefully by forcing center
+        // Or leave it to the original logic which just splits based on engine_q_end - engine_q_start dynamically.
+        
+        run_test("Dynamic Sized Base Recursive Split Test");
         
         $finish;
     end
 
 endmodule
+
