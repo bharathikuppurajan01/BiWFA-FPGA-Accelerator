@@ -67,6 +67,9 @@ module biwfa_base_solver #(
 
     reg fallback_mode;
     reg [OFFSET_WIDTH-1:0] fb_q, fb_r;
+    reg wait_fetch;
+    reg [OFFSET_WIDTH-1:0] pend_q_addr;
+    reg [OFFSET_WIDTH-1:0] pend_r_addr;
 
     // local buffers
     reg [7:0] q_buf [0:MAX_LEAF_LEN-1];
@@ -114,6 +117,9 @@ module biwfa_base_solver #(
             fallback_mode <= 0;
             fb_q <= 0;
             fb_r <= 0;
+            wait_fetch <= 0;
+            pend_q_addr <= 0;
+            pend_r_addr <= 0;
         end else begin
             done <= 0;
             fetch_req <= 0;
@@ -135,6 +141,7 @@ module biwfa_base_solver #(
                         direct_emit_idx <= 0;
                         fb_q <= q_start;
                         fb_r <= r_start;
+                        wait_fetch <= 0;
                         state <= S_LOAD;
                     end
                 end
@@ -156,27 +163,39 @@ module biwfa_base_solver #(
                             cigar_len <= q_end - fb_q;
                             fb_q <= q_end;
                         end else begin
-                            fetch_req <= 1;
-                            fetch_q_addr <= fb_q;
-                            fetch_r_addr <= fb_r;
-                            if (fetch_valid) begin
+                            if (!wait_fetch) begin
+                                fetch_req <= 1;
+                                fetch_q_addr <= fb_q;
+                                fetch_r_addr <= fb_r;
+                                pend_q_addr <= fb_q;
+                                pend_r_addr <= fb_r;
+                                wait_fetch <= 1;
+                            end
+                            if (wait_fetch && fetch_valid) begin
                                 cigar_valid <= 1;
                                 cigar_len <= 1;
                                 cigar_op <= (fetch_q_char == fetch_r_char) ? 2'd0 : 2'd3;
                                 fb_q <= fb_q + 1;
                                 fb_r <= fb_r + 1;
+                                wait_fetch <= 0;
                             end
                         end
                     end else begin
                         // Load buffers; one fetch per index (both Q and R)
                         if (load_idx < len_q || load_idx < len_r) begin
-                            fetch_req <= 1;
-                            fetch_q_addr <= q_start + load_idx;
-                            fetch_r_addr <= r_start + load_idx;
-                            if (fetch_valid) begin
+                            if (!wait_fetch) begin
+                                fetch_req <= 1;
+                                fetch_q_addr <= q_start + load_idx;
+                                fetch_r_addr <= r_start + load_idx;
+                                pend_q_addr <= q_start + load_idx;
+                                pend_r_addr <= r_start + load_idx;
+                                wait_fetch <= 1;
+                            end
+                            if (wait_fetch && fetch_valid) begin
                                 if (load_idx < len_q) q_buf[load_idx] <= fetch_q_char;
                                 if (load_idx < len_r) r_buf[load_idx] <= fetch_r_char;
                                 load_idx <= load_idx + 1;
+                                wait_fetch <= 0;
                             end
                         end else begin
                             state <= S_DP_INIT;
