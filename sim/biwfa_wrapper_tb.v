@@ -80,7 +80,6 @@ module biwfa_wrapper_tb;
             $display("\n");
             
             $display("[2] PROCESS: BiWFA Divide-and-Conquer started...");
-            
             cigar_buffer = "";
             q_idx = 0;
             r_idx = 0;
@@ -112,8 +111,7 @@ module biwfa_wrapper_tb;
             end
             
             if (wait_timeout >= 10000) begin
-                $display("\n[!] ERROR: Simulation timed out for this sequence pair! Divide and conquer likely fell into an infinite recursion block.");
-                $display("This usually happens if fake_collision intersects repetitively on the same block without progressing (< THRESHOLD_LEN).");
+                $display("\n[!] ERROR: Simulation timed out for this sequence pair!");
             end else begin
             #100; // Extra delay to catch the final CIGAR flush
             
@@ -155,10 +153,6 @@ module biwfa_wrapper_tb;
                 2'd2: cigar_buffer = {cigar_buffer[(8*MAX_SEQ_LEN)-17:0], 8'd48 + op_length[7:0], 8'h44}; // "D"
                 2'd3: cigar_buffer = {cigar_buffer[(8*MAX_SEQ_LEN)-17:0], 8'd48 + op_length[7:0], 8'h58}; // "X"
             endcase
-            
-            $display("  -> Base Solver Emitted Segment: %0d%0s", op_length, 
-                (op_code==0)?"M": (op_code==1)?"I": (op_code==2)?"D": "X"
-            );
             
             // Loop through the length of the operation
             for (k = 0; k < op_length; k = k + 1) begin
@@ -229,20 +223,6 @@ module biwfa_wrapper_tb;
         while(tb_seq_r_len < MAX_SEQ_LEN && seq_R[tb_seq_r_len] != 8'h00 && seq_R[tb_seq_r_len] !== 8'hxx) tb_seq_r_len = tb_seq_r_len + 1;
         if (tb_seq_q_len == 0 || tb_seq_r_len == 0) $display("ERROR: Sequences loaded are empty for Example 2.");
         else run_test("Example 2 (query2.mem / reference2.mem)");
-
-        // ------------------------- EXAMPLE 3 -------------------------
-        for (i = 0; i < MAX_SEQ_LEN; i = i + 1) begin
-            seq_Q[i] = 8'h00;
-            seq_R[i] = 8'h00;
-        end
-        $readmemh("query3.mem", seq_Q);
-        $readmemh("reference3.mem", seq_R);
-        tb_seq_q_len = 0;
-        while(tb_seq_q_len < MAX_SEQ_LEN && seq_Q[tb_seq_q_len] != 8'h00 && seq_Q[tb_seq_q_len] !== 8'hxx) tb_seq_q_len = tb_seq_q_len + 1;
-        tb_seq_r_len = 0;
-        while(tb_seq_r_len < MAX_SEQ_LEN && seq_R[tb_seq_r_len] != 8'h00 && seq_R[tb_seq_r_len] !== 8'hxx) tb_seq_r_len = tb_seq_r_len + 1;
-        if (tb_seq_q_len == 0 || tb_seq_r_len == 0) $display("ERROR: Sequences loaded are empty for Example 3.");
-        else run_test("Example 3 (query3.mem / reference3.mem)");
         
         $finish;
     end

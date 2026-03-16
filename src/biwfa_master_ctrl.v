@@ -89,7 +89,6 @@ module biwfa_master_ctrl #(
                         push_r_end   <= seq_r_len;
                         stack_push   <= 1;
                         state        <= INIT_PUSH;
-                        $display("[FSM] START: Pushing initial block [%0d, %0d] [%0d, %0d]", 0, seq_q_len, 0, seq_r_len);
                     end
                 end
                 
@@ -119,7 +118,6 @@ module biwfa_master_ctrl #(
                         // Subproblem is too tiny, use direct base solver to emit string
                         base_solve_start <= 1;
                         state <= SOLVE_BASE;
-                        $display("[FSM] BASE_SOLVE: Block Q[%0d,%0d] R[%0d,%0d]", pop_q_start, pop_q_end, pop_r_start, pop_r_end);
                     end else begin
                         // Proceed to dual wavefron DP
                         engine_q_start <= pop_q_start;
@@ -128,7 +126,6 @@ module biwfa_master_ctrl #(
                         engine_r_end   <= pop_r_end;
                         engine_start   <= 1;
                         state          <= WAIT_WFA;
-                        $display("[FSM] ENGINE_START: DPU block Q[%0d,%0d] R[%0d,%0d]", pop_q_start, pop_q_end, pop_r_start, pop_r_end);
                     end
                 end
                 
@@ -141,8 +138,6 @@ module biwfa_master_ctrl #(
                             q_star <= cur_q_start + collision_x;
                             // Need signed math to correctly add negative k if present. 
                             r_star <= cur_r_start + collision_x - collision_k;
-                            
-                            $display("[FSM] INTERSECTION FOUND at Q*= %0d, R*= %0d (s=%0d, k=%0d, x=%0d)", q_star, r_star, collision_s, collision_k, collision_x);
 
                             if (collision_s == 0) begin
                                 // Perfect match over segment! No sub-problems needed, handled implicitly as Base
@@ -151,14 +146,14 @@ module biwfa_master_ctrl #(
                             end else begin
                                 // Divide and push
                                 state <= PUSH_RIGHT;
-                                $display("[FSM] DIVIDING: Pushing Right [%0d,%0d] [%0d,%0d] and Left [%0d,%0d] [%0d,%0d]", q_star, cur_q_end, r_star, cur_r_end, cur_q_start, q_star, cur_r_start, r_star);
                             end
                         end else begin
                             // Handle sequence max-out gracefully without collision (e.g. alignment divergence limit)
                             // Normally BiWFA guarantees intersection if edit distance bounds allow it. 
                             // If memory runs out before intersection, it's an alignment fail state.
-                            $display("[FSM] ENGINE DONE WITHOUT COLLISION!");
-                            state <= POP_EVAL; 
+                            // Fall back to base solver so the segment is still fully aligned.
+                            base_solve_start <= 1;
+                            state <= SOLVE_BASE;
                         end
                     end
                 end

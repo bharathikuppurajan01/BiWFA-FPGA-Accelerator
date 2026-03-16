@@ -63,7 +63,11 @@ module biwfa_intersect #(
             if (start_new_iteration) begin
                 intersection_found <= 0;
             end else if (!intersection_found && check_valid) begin
-                $display("[INTERSECT SCORE %0d] check_valid=1, fwd_x=%0d, bwd_curr=%0d, bwd_x=%0d, fwd_curr=%0d, q_len=%0d, cond1=%b, cond2=%b", current_s, wf_fwd_next_x, bwd_cross_curr_x, wf_bwd_next_x, fwd_cross_curr_x, sub_q_len, cond1_hit, cond2_hit);
+                // Optional debug print (disabled by default to keep Tcl output clean)
+                // `ifdef BIWFA_DEBUG_INTERSECT
+                // $display("[INTERSECT SCORE %0d] check_valid=1, fwd_x=%0d, bwd_curr=%0d, bwd_x=%0d, fwd_curr=%0d, q_len=%0d, cond1=%b, cond2=%b",
+                //          current_s, wf_fwd_next_x, bwd_cross_curr_x, wf_bwd_next_x, fwd_cross_curr_x, sub_q_len, cond1_hit, cond2_hit);
+                // `endif
                 if (cond1_hit) begin
                     intersection_found <= 1;
                     intersect_s <= current_s; // Score where they met
