@@ -30,7 +30,7 @@ module biwfa_wrapper_tb;
 
     biwfa_top_wrapper #(
         .SCORE_WIDTH(10), .MAX_SEQ_LEN(MAX_SEQ_LEN), .ADDR_WIDTH(14),
-        .K_WIDTH(10), .OFFSET_WIDTH(14), .THRESHOLD_LEN(4)
+        .K_WIDTH(10), .OFFSET_WIDTH(14), .THRESHOLD_LEN(32)
     ) dut (
         .clk(clk), .rst_n(rst_n),
         .start_alignment(start_alignment),
@@ -101,8 +101,10 @@ module biwfa_wrapper_tb;
             end
             preload_en = 0;
             
+            // Hold start high for multiple cycles so internal FSMs
+            // reliably sample it on a clock edge.
             #20 start_alignment = 1;
-            #10 start_alignment = 0;
+            #50 start_alignment = 0;
             
             // Wait for Master FSM to finish with a timeout to prevent infinite hangs
             while(!system_done && wait_timeout < 10000) begin
