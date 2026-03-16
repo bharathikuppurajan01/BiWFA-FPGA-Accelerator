@@ -30,6 +30,13 @@ module biwfa_cigar_coalescer #(
     reg [1:0] emit_op;
     reg [OFFSET_WIDTH-1:0] emit_len;
 
+    // If we hit an opcode change on the final beat, we can only emit
+    // one segment per cycle. Buffer the final segment here and emit it
+    // on the next cycle.
+    reg flush_pending;
+    reg [1:0] flush_op;
+    reg [OFFSET_WIDTH-1:0] flush_len;
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             valid_out <= 0;
@@ -45,8 +52,20 @@ module biwfa_cigar_coalescer #(
             emit_prev <= 0;
             emit_op <= 0;
             emit_len <= 0;
+
+            flush_pending <= 0;
+            flush_op <= 0;
+            flush_len <= 0;
         end else begin
             valid_out <= 0;
+
+            // If we have a buffered flush segment, emit it first.
+            if (flush_pending) begin
+                valid_out <= 1;
+                op_out    <= flush_op;
+                len_out   <= flush_len;
+                flush_pending <= 0;
+            end
 
             next_active = active;
             next_op     = current_op;
@@ -73,18 +92,33 @@ module biwfa_cigar_coalescer #(
                 end
             end
 
-            // Emit previous buffer if opcode changed
+            // Emit previous buffer if opcode changed, but don't clobber an earlier output.
+            // If we're already outputting (flush_pending emit), defer this emit by buffering it.
             if (emit_prev) begin
-                valid_out <= 1;
-                op_out    <= emit_op;
-                len_out   <= emit_len;
+                if (!valid_out) begin
+                    valid_out <= 1;
+                    op_out    <= emit_op;
+                    len_out   <= emit_len;
+                end else begin
+                    // Rare: two emits in one cycle. Buffer and emit next cycle.
+                    flush_pending <= 1;
+                    flush_op      <= emit_op;
+                    flush_len     <= emit_len;
+                end
             end
 
-            // Flush at end of alignment using the post-consume buffered state
+            // Flush at end of alignment using the post-consume buffered state.
+            // If we've already emitted something this cycle (opcode change), buffer the flush for next cycle.
             if (end_of_alignment && next_active) begin
-                valid_out <= 1;
-                op_out    <= next_op;
-                len_out   <= next_len;
+                if (!valid_out) begin
+                    valid_out <= 1;
+                    op_out    <= next_op;
+                    len_out   <= next_len;
+                end else begin
+                    flush_pending <= 1;
+                    flush_op      <= next_op;
+                    flush_len     <= next_len;
+                end
                 next_active = 0;
             end
 
