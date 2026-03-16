@@ -32,35 +32,61 @@ module biwfa_cigar_coalescer #(
             len_out <= 0;
         end else begin
             valid_out <= 0;
-            
+
+            // Compute the "next" buffered state if we consume valid_in this cycle.
+            // This avoids dropping the last beat when end_of_alignment and valid_in
+            // are asserted in the same cycle.
+            reg next_active;
+            reg [1:0] next_op;
+            reg [OFFSET_WIDTH-1:0] next_len;
+            reg emit_prev;
+            reg [1:0] emit_op;
+            reg [OFFSET_WIDTH-1:0] emit_len;
+
+            next_active = active;
+            next_op     = current_op;
+            next_len    = current_len;
+            emit_prev   = 0;
+            emit_op     = current_op;
+            emit_len    = current_len;
+
             if (valid_in) begin
                 if (!active) begin
-                    // First operation
-                    active <= 1;
-                    current_op <= op_in;
-                    current_len <= len_in;
+                    next_active = 1;
+                    next_op     = op_in;
+                    next_len    = len_in;
                 end else if (op_in == current_op) begin
-                    // Coalesce identical ops
-                    current_len <= current_len + len_in;
+                    next_len = current_len + len_in;
                 end else begin
-                    // Opcode changed, emit previous buffer
-                    valid_out <= 1;
-                    op_out <= current_op;
-                    len_out <= current_len;
-                    
-                    // Start new buffer
-                    current_op <= op_in;
-                    current_len <= len_in;
+                    // Opcode changed, emit previous buffer now and start a new one
+                    emit_prev = 1;
+                    emit_op   = current_op;
+                    emit_len  = current_len;
+                    next_active = 1;
+                    next_op     = op_in;
+                    next_len    = len_in;
                 end
             end
-            
-            // Flush buffer at end of sequence alignment
-            if (end_of_alignment && active) begin
+
+            // Emit previous buffer if opcode changed
+            if (emit_prev) begin
                 valid_out <= 1;
-                op_out <= current_op;
-                len_out <= current_len;
-                active <= 0;
+                op_out    <= emit_op;
+                len_out   <= emit_len;
             end
+
+            // Flush at end of alignment using the post-consume buffered state
+            if (end_of_alignment && next_active) begin
+                valid_out <= 1;
+                op_out    <= next_op;
+                len_out   <= next_len;
+                next_active = 0;
+            end
+
+            // Commit buffered state
+            active      <= next_active;
+            current_op  <= next_op;
+            current_len <= next_len;
         end
     end
 

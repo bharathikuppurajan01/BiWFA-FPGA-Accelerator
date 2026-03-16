@@ -45,8 +45,11 @@ module biwfa_base_solver #(
 );
 
     localparam BP_DIAG = 2'd0;
-    localparam BP_UP   = 2'd1; // consume Q only -> D in this encoding? (ref has char)
-    localparam BP_LEFT = 2'd2; // consume R only -> I in this encoding? (query has char)
+    // In DP coordinates (i over Q, j over R):
+    // - UP   (i-1,j) -> (i,j): consume Q, gap in R => Insertion (I)
+    // - LEFT (i,j-1) -> (i,j): consume R, gap in Q => Deletion  (D)
+    localparam BP_UP   = 2'd1;
+    localparam BP_LEFT = 2'd2;
 
     localparam S_IDLE      = 3'd0;
     localparam S_LOAD      = 3'd1;
@@ -244,13 +247,13 @@ module biwfa_base_solver #(
                             i_idx <= i_idx - 1;
                             j_idx <= j_idx - 1;
                         end else if (i_idx > 0 && (j_idx == 0 || bp[i_idx][j_idx] == BP_UP)) begin
-                            // consume Q only -> deletion in alignment of Q (gap in Q) => 'D'
-                            op_stack[op_sp] <= 2'd2;
+                            // consume Q only -> gap in R => 'I'
+                            op_stack[op_sp] <= 2'd1;
                             op_sp <= op_sp + 1;
                             i_idx <= i_idx - 1;
                         end else begin
-                            // consume R only -> insertion in alignment => 'I'
-                            op_stack[op_sp] <= 2'd1;
+                            // consume R only -> gap in Q => 'D'
+                            op_stack[op_sp] <= 2'd2;
                             op_sp <= op_sp + 1;
                             j_idx <= j_idx - 1;
                         end
