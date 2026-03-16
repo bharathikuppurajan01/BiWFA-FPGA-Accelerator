@@ -22,6 +22,14 @@ module biwfa_cigar_coalescer #(
     reg [OFFSET_WIDTH-1:0] current_len;
     reg active;
 
+    // Verilog-2001: declare temporaries at module scope
+    reg next_active;
+    reg [1:0] next_op;
+    reg [OFFSET_WIDTH-1:0] next_len;
+    reg emit_prev;
+    reg [1:0] emit_op;
+    reg [OFFSET_WIDTH-1:0] emit_len;
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             valid_out <= 0;
@@ -30,18 +38,15 @@ module biwfa_cigar_coalescer #(
             active <= 0;
             op_out <= 0;
             len_out <= 0;
+
+            next_active <= 0;
+            next_op <= 0;
+            next_len <= 0;
+            emit_prev <= 0;
+            emit_op <= 0;
+            emit_len <= 0;
         end else begin
             valid_out <= 0;
-
-            // Compute the "next" buffered state if we consume valid_in this cycle.
-            // This avoids dropping the last beat when end_of_alignment and valid_in
-            // are asserted in the same cycle.
-            reg next_active;
-            reg [1:0] next_op;
-            reg [OFFSET_WIDTH-1:0] next_len;
-            reg emit_prev;
-            reg [1:0] emit_op;
-            reg [OFFSET_WIDTH-1:0] emit_len;
 
             next_active = active;
             next_op     = current_op;

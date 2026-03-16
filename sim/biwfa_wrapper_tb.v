@@ -29,8 +29,10 @@ module biwfa_wrapper_tb;
     integer i;
 
     biwfa_top_wrapper #(
-        .SCORE_WIDTH(10), .MAX_SEQ_LEN(MAX_SEQ_LEN), .ADDR_WIDTH(14),
-        .K_WIDTH(10), .OFFSET_WIDTH(14), .THRESHOLD_LEN(32)
+        .MAX_SEQ_LEN(MAX_SEQ_LEN),
+        .ADDR_WIDTH(14),
+        .K_WIDTH(10),
+        .OFFSET_WIDTH(14)
     ) dut (
         .clk(clk), .rst_n(rst_n),
         .start_alignment(start_alignment),
