@@ -39,29 +39,13 @@ module biwfa_top_wrapper #(
         .resp_valid(), .resp_k(), .resp_q_char(), .resp_r_char()
     );
 
-    // Base solver taps memory directly (1-cycle latency)
+    // Base solver taps memory directly (combinational in simulation).
+    // This avoids address/req sampling races between two clocked blocks.
     wire base_fetch_req;
     wire [OFFSET_WIDTH-1:0] base_fetch_q_addr, base_fetch_r_addr;
-    reg  [7:0] q_mem_base_read, r_mem_base_read;
-    reg        base_read_valid;
-
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            base_read_valid <= 0;
-        end else begin
-            if (base_fetch_req) begin
-                q_mem_base_read <= L1_MEM.q_mem[base_fetch_q_addr];
-                r_mem_base_read <= L1_MEM.r_mem[base_fetch_r_addr];
-                base_read_valid <= 1;
-            end else begin
-                base_read_valid <= 0;
-            end
-        end
-    end
-
-    wire base_fetch_valid = base_read_valid;
-    wire [7:0] base_fetch_q_char = q_mem_base_read;
-    wire [7:0] base_fetch_r_char = r_mem_base_read;
+    wire base_fetch_valid = base_fetch_req;
+    wire [7:0] base_fetch_q_char = L1_MEM.q_mem[base_fetch_q_addr];
+    wire [7:0] base_fetch_r_char = L1_MEM.r_mem[base_fetch_r_addr];
 
     wire base_solve_done;
     wire base_cigar_valid;
