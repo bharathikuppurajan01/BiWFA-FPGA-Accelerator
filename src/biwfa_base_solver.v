@@ -83,6 +83,9 @@ module biwfa_base_solver #(
     reg [1:0] op_stack [0:(2*MAX_LEAF_LEN)-1];
     reg [6:0] op_sp;
     reg [6:0] emit_idx;
+    reg has_gap;
+    reg direct_emit_mode;
+    reg [5:0] direct_emit_idx;
 
     reg signed [SCORE_WIDTH-1:0] score_diag, score_up, score_left;
     reg signed [SCORE_WIDTH-1:0] best_score;
@@ -105,6 +108,9 @@ module biwfa_base_solver #(
             j_idx <= 0;
             op_sp <= 0;
             emit_idx <= 0;
+            has_gap <= 0;
+            direct_emit_mode <= 0;
+            direct_emit_idx <= 0;
             fallback_mode <= 0;
             fb_q <= 0;
             fb_r <= 0;
@@ -124,6 +130,9 @@ module biwfa_base_solver #(
                         load_idx <= 0;
                         op_sp <= 0;
                         emit_idx <= 0;
+                        has_gap <= 0;
+                        direct_emit_mode <= 0;
+                        direct_emit_idx <= 0;
                         fb_q <= q_start;
                         fb_r <= r_start;
                         state <= S_LOAD;
@@ -235,6 +244,7 @@ module biwfa_base_solver #(
                         i_idx <= len_q;
                         j_idx <= len_r;
                         op_sp <= 0;
+                        has_gap <= 0;
                         state <= S_TRACEBACK;
                     end
                 end
@@ -251,18 +261,28 @@ module biwfa_base_solver #(
                             op_stack[op_sp] <= 2'd1;
                             op_sp <= op_sp + 1;
                             i_idx <= i_idx - 1;
+                            has_gap <= 1;
                         end else begin
                             // consume R only -> gap in Q => 'D'
                             op_stack[op_sp] <= 2'd2;
                             op_sp <= op_sp + 1;
                             j_idx <= j_idx - 1;
+                            has_gap <= 1;
                         end
                     end else begin
                         if (op_sp == 0) begin
                             done <= 1;
                             state <= S_IDLE;
                         end else begin
-                            emit_idx <= op_sp - 1;
+                            // If traceback has no gaps and lengths match, emit directly from buffers
+                            // to guarantee correct M/X placement for pure diagonal alignments.
+                            if (!has_gap && (len_q == len_r)) begin
+                                direct_emit_mode <= 1;
+                                direct_emit_idx  <= 0;
+                            end else begin
+                                direct_emit_mode <= 0;
+                                emit_idx <= op_sp - 1;
+                            end
                             state <= S_EMIT;
                         end
                     end
@@ -271,11 +291,24 @@ module biwfa_base_solver #(
                 S_EMIT: begin
                     cigar_valid <= 1;
                     cigar_len <= 1;
-                    cigar_op <= op_stack[emit_idx];
-
-                    if (emit_idx > 0) begin
-                        emit_idx <= emit_idx - 1;
+                    if (direct_emit_mode) begin
+                        cigar_op <= (q_buf[direct_emit_idx] == r_buf[direct_emit_idx]) ? 2'd0 : 2'd3;
+                        if (direct_emit_idx + 1 < len_q) begin
+                            direct_emit_idx <= direct_emit_idx + 1;
+                        end else begin
+                            done <= 1;
+                            state <= S_IDLE;
+                        end
                     end else begin
+                        cigar_op <= op_stack[emit_idx];
+                        if (emit_idx > 0) begin
+                            emit_idx <= emit_idx - 1;
+                        end else begin
+                            done <= 1;
+                            state <= S_IDLE;
+                        end
+                    end
+                    if (!direct_emit_mode && emit_idx == 0) begin
                         done <= 1;
                         state <= S_IDLE;
                     end
